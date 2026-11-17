@@ -1,0 +1,44 @@
+name: Build from ZIP (phone friendly)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack project
+        run: |
+          test -f S18ThemeStudio.zip || { echo "S18ThemeStudio.zip not found in repository root"; exit 1; }
+          mkdir work
+          unzip -q S18ThemeStudio.zip -d work
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Engine tests and debug APK
+        working-directory: work
+        run: gradle --no-daemon :core:test :app:assembleDebug
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: S18ThemeStudio-debug-apk
+          path: work/app/build/outputs/apk/debug/*.apk
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-test-report
+          path: work/core/build/reports/tests/test
